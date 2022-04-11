@@ -138,7 +138,7 @@ func (nw *dpSriovNetwork) DiscoverVFs(ndevName string) error {
 	return nil
 }
 
-func (nw *dpSriovNetwork) AllocVF(parentNetdev string) string {
+func (nw *dpSriovNetwork) AllocVF(parentNetdev string, lladdr string) string {
 	var allocatedDev string
 	var privileged bool
 
@@ -153,8 +153,19 @@ func (nw *dpSriovNetwork) AllocVF(parentNetdev string) string {
 		return ""
 	}
 
+	devIdx = len(dev.childNetdevLlist) - 1
+	for i, v := range dev.childNetdevLlist {
+		mac_addr, err := GetVFDefaultMacAddr(v)
+		log.Printf("Discovered MAC Addr %s for %s", mac_addr, v)
+
+		if err != nil && mac_addr == lladdr {
+			log.Printf("Matched %s with %s", lladdr, v)
+			devIdx = i
+		}
+	}
+
 	// fetch the last element
-	allocatedDev = dev.childNetdevLlist[len(dev.childNetdevLlist)-1]
+	allocatedDev = dev.childNetdevLlist[devIdx]
 	if allocatedDev == "" {
 		return ""
 	}
@@ -174,7 +185,7 @@ func (nw *dpSriovNetwork) AllocVF(parentNetdev string) string {
 		return ""
 	}
 
-	dev.childNetdevLlist = dev.childNetdevLlist[:len(dev.childNetdevLlist)-1]
+	dev.childNetdevLlist = append(dev.childNetdevLlist[:devIdx], dev.childNetdevLlist[devIdx+1:]...)
 
 	log.Printf("AllocVF parent [ %+v ] vf:%v vfdev: %v\n",
 		parentNetdev, allocatedDev, len(dev.childNetdevLlist))
@@ -189,7 +200,7 @@ func (nw *dpSriovNetwork) FreeVF(pf *dpPfDevice, vfName string) {
 func (nw *dpSriovNetwork) CreateEndpoint(r *network.CreateEndpointRequest) (*network.CreateEndpointResponse, error) {
 	var netdevName string
 
-	netdevName = nw.AllocVF(nw.genNw.ndevName)
+	netdevName = nw.AllocVF(nw.genNw.ndevName, r.Interface.MacAddress)
 	if netdevName == "" {
 		return nil, fmt.Errorf("All devices in use [ %s ].", r.NetworkID)
 	}
