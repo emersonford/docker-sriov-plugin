@@ -153,14 +153,15 @@ func (nw *dpSriovNetwork) AllocVF(parentNetdev string, lladdr string) string {
 		return ""
 	}
 
-	devIdx = len(dev.childNetdevLlist) - 1
+	devIdx := len(dev.childNetdevLlist) - 1
 	for i, v := range dev.childNetdevLlist {
 		mac_addr, err := GetVFDefaultMacAddr(v)
-		log.Printf("Discovered MAC Addr %s for %s", mac_addr, v)
+		// log.Printf("Discovered MAC Addr %s for %s", mac_addr, v)
 
-		if err != nil && mac_addr == lladdr {
+		if err == nil && mac_addr == lladdr {
 			log.Printf("Matched %s with %s", lladdr, v)
 			devIdx = i
+			break
 		}
 	}
 
